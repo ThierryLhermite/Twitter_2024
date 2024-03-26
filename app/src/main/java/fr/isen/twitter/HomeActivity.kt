@@ -1,14 +1,12 @@
 package fr.isen.twitter
 
 import android.content.Intent
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -24,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import fr.isen.twitter.model.TopBar
 import fr.isen.twitter.ui.theme.MyApplicationTheme
 import kotlin.random.Random
+
+// Assuming R.drawable.ic_launcher_background and TopBar are defined elsewhere in your project.
 
 data class MockPost(
     val postId: String,
@@ -51,9 +51,9 @@ class HomeActivity : ComponentActivity() {
                     topBar = {
                         TopBar(
                             onNavigateBack = {
-                                val homeIntent = Intent(this, HomeActivity::class.java)
+                                val homeIntent = Intent(this@HomeActivity, HomeActivity::class.java)
                                 homeIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                this.startActivity(homeIntent)
+                                startActivity(homeIntent)
                             }
                         )
                     }
@@ -69,23 +69,22 @@ class HomeActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            SocialFeedScreen()
+                            SocialFeedScreen(mockPosts)
                         }
                     }
                 }
-                SocialFeedScreen(mockPosts)
             }
         }
     }
 }
 
 @Composable
-fun SocialFeedScreen() {
+fun SocialFeedScreen(posts: List<MockPost>) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        FeedScreen()
+        FeedScreen(posts)
     }
 }
 
@@ -93,7 +92,7 @@ fun SocialFeedScreen() {
 fun FeedScreen(posts: List<MockPost>) {
     LazyColumn {
         items(posts) { post ->
-            PostItem(post = post, userName = currentUser)
+            PostItem(post)
         }
     }
 }
@@ -145,8 +144,15 @@ fun PostItem(post: MockPost) {
                 contentScale = ContentScale.FillWidth
             )
             Text(text = post.description, modifier = Modifier.padding(8.dp))
-            Text(text = "${post.likes} likes", modifier = Modifier.padding(8.dp))
-            Text(text = "${post.comments} comments", modifier = Modifier.padding(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "${post.likes} likes")
+                Text(text = "${post.comments} comments")
+            }
         }
     }
 }
@@ -155,6 +161,19 @@ fun PostItem(post: MockPost) {
 @Composable
 fun DefaultPreview() {
     MyApplicationTheme {
-        SocialFeedScreen()
+        // Generate a sample list or use mockPosts if accessible in this context
+        val samplePosts = List(5) {
+            MockPost(
+                postId = "sample${it
+                }",
+                userImage = R.drawable.ic_launcher_background,
+                userName = "User $it",
+                image = R.drawable.ic_launcher_background,
+                description = "This is a sample description for post $it.",
+                likes = it * 20,
+                comments = it * 10
+            )
+        }
+        SocialFeedScreen(samplePosts)
     }
 }
