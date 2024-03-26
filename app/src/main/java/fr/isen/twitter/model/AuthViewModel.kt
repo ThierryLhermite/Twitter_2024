@@ -24,7 +24,8 @@ class AuthViewModel : ViewModel() {
                     val userId = user.uid
                     val userMap = mapOf(
                         "username" to username,
-                        "email" to email
+                        "email" to email,
+                        "friends" to emptyMap<String, Boolean>() // Utilisez une Map vide pour la future liste d'amis
                         // Ajoutez ici d'autres informations comme "age" si nécessaire
                     )
 
@@ -45,6 +46,20 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun addFriend(userId: String, friendId: String) {
+        // Chemin vers la liste d'amis de l'utilisateur dans la base de données
+        val friendListRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users/$userId/friends")
+
+        // Ajouter l'UID de l'ami avec une valeur 'true' pour le marquer comme ami
+        friendListRef.child(friendId).setValue(true).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Log.d("AuthViewModel", "Ami ajouté avec succès")
+            } else {
+                Log.e("AuthViewModel", "Erreur lors de l'ajout d'un ami", task.exception)
+            }
+        }
+    }
 
     fun login(email: String, password: String) {
         auth.signInWithEmailAndPassword(email, password)
