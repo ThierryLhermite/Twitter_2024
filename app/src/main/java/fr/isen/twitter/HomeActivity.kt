@@ -1,6 +1,7 @@
 package fr.isen.twitter
 
 import android.content.Intent
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,7 +21,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import fr.isen.twitter.model.TopBar
 import fr.isen.twitter.ui.theme.MyApplicationTheme
 import kotlin.random.Random
 
@@ -73,6 +73,7 @@ class HomeActivity : ComponentActivity() {
                         }
                     }
                 }
+                SocialFeedScreen(mockPosts)
             }
         }
     }
@@ -88,14 +89,11 @@ fun SocialFeedScreen() {
     }
 }
 
-// Utilisation de votre structure existante pour le FeedScreen, avec quelques ajustements pour intégrer MaterialTheme
 @Composable
-fun FeedScreen() {
-    Column(modifier = Modifier.padding(8.dp)) {
-        LazyColumn {
-            items(mockPosts) { post ->
-                PostItem(post)
-            }
+fun FeedScreen(posts: List<MockPost>) {
+    LazyColumn {
+        items(posts) { post ->
+            PostItem(post = post, userName = currentUser)
         }
     }
 }
