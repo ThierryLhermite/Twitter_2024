@@ -40,6 +40,7 @@ class ProfilActivity : ComponentActivity() {
         val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
             ProfilScreen(username)
+            ImageUploadFromGalleryWithSendButton()
         }
     }
 }
