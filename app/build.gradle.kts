@@ -64,6 +64,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.6.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-storage")
     implementation ("com.google.firebase:firebase-database-ktx")
     implementation ("androidx.lifecycle:lifecycle-livedata-ktx:2.3.1")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1")
@@ -72,6 +73,9 @@ dependencies {
     implementation ("androidx.compose.ui:ui:1.0.0")
     implementation ("androidx.compose.material:material:1.0.0")
     implementation ("androidx.compose.ui:ui-tooling-preview:1.0.0")
+    implementation ("com.google.firebase:firebase-storage-ktx")
+    implementation ("io.coil-kt:coil-compose:2.1.0")
+
 
     implementation(libs.firebase.auth.ktx)
     implementation(libs.androidx.appcompat)
