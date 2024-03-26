@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import fr.isen.twitter.model.TopBar
 import fr.isen.twitter.ui.theme.MyApplicationTheme
 import kotlin.random.Random
 
