@@ -29,6 +29,8 @@ class RegisterActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             RegisterScreen()
+            // Votre thème Compose (si applicable)
+
         }
     }
 }
@@ -59,9 +61,11 @@ fun RegisterScreen(authViewModel: AuthViewModel = viewModel()) {
         )
         Button(onClick = {
             authViewModel.register(email, password, username)
-        }) {
+        })
+        {
             Text("Register")
         }
+
     }
     val user by authViewModel.userLiveData.observeAsState()
 

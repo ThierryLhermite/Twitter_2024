@@ -53,6 +53,7 @@ fun ProfilScreen() {
     Scaffold(
         topBar = {
             TopBar(
+                showBackButton = true,
                 onNavigateBack = { context.startActivity(Intent(context, HomeActivity::class.java)) }
             )
         }

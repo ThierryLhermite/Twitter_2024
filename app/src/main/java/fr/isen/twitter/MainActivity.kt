@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
     }
 }
 
@@ -88,3 +89,4 @@ fun GreetingPreview() {
         Greeting("Android")
     }
 }
+
