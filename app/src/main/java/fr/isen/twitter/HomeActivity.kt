@@ -1,74 +1,140 @@
 package fr.isen.twitter
 
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.FirebaseDatabase
-import fr.isen.twitter.model.TopBar
+import androidx.compose.ui.unit.dp
 import fr.isen.twitter.ui.theme.MyApplicationTheme
+import kotlin.random.Random
+
+data class MockPost(
+    val postId: String,
+    val userImage: Int,
+    val userName: String,
+    val image: Int,
+    val description: String,
+    val likes: Int,
+    val comments: Int
+)
+
+val mockPosts = List(100) {
+    val uid = java.util.UUID.randomUUID().toString()
+    MockPost(uid, R.drawable.ic_launcher_background, "User ${Random.nextInt(1, 100)}",
+        R.drawable.ic_launcher_background, "This is a random description ${Random.nextFloat()}",
+        Random.nextInt(1000), Random.nextInt(100))
+}
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MyApplicationTheme {
-                UserHomeScreen()
+                SocialFeedScreen()
             }
         }
     }
 }
 
 @Composable
-fun UserHomeScreen() {
-    val context = LocalContext.current
-    var username by remember { mutableStateOf("") }
+fun SocialFeedScreen() {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        FeedScreen()
+    }
+}
 
-    // Récupérer l'UID de l'utilisateur connecté
-    val uid = FirebaseAuth.getInstance().currentUser?.uid
-
-    // Lancer un effet pour récupérer le nom d'utilisateur une seule fois
-    LaunchedEffect(uid) {
-        uid?.let {
-            val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
-                .getReference("Users").child(it)
-            databaseReference.get().addOnSuccessListener { snapshot ->
-                username = snapshot.child("username").getValue(String::class.java) ?: "Inconnu"
+// Utilisation de votre structure existante pour le FeedScreen, avec quelques ajustements pour intégrer MaterialTheme
+@Composable
+fun FeedScreen() {
+    Column(modifier = Modifier.padding(8.dp)) {
+        LazyRow {
+            items(mockPosts) { story ->
+                StoryCard(story)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyColumn {
+            items(mockPosts) { post ->
+                PostItem(post)
             }
         }
     }
+}
 
-    Scaffold(
-        topBar = {
-            TopBar(
-                showBackButton = true,
-                onNavigateBack = {
-                    // Implémentez la logique de navigation vers l'arrière si nécessaire
-                }
-            )
-        }
-    ) { innerPadding ->
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = "Bienvenue, $username", style = MaterialTheme.typography.headlineMedium)
+@Composable
+fun StoryCard(post: MockPost) {
+    Card(
+        modifier = Modifier
+            .padding(4.dp)
+            .size(70.dp)
+            .clip(CircleShape),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Image(
+            painter = painterResource(id = post.userImage),
+            contentDescription = null,
+            contentScale = ContentScale.Crop
+        )
+    }
+}
+
+@Composable
+fun PostItem(post: MockPost) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = post.userImage),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .padding(8.dp),
+                    contentScale = ContentScale.Crop
+                )
+                Text(text = post.userName, modifier = Modifier.padding(8.dp))
             }
+            Image(
+                painter = painterResource(id = post.image),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                contentScale = ContentScale.FillWidth
+            )
+            Text(text = post.description, modifier = Modifier.padding(8.dp))
+            Text(text = "${post.likes} likes", modifier = Modifier.padding(8.dp))
+            Text(text = "${post.comments} comments", modifier = Modifier.padding(8.dp))
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DefaultPreview() {
+    MyApplicationTheme {
+        SocialFeedScreen()
     }
 }
