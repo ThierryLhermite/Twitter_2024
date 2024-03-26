@@ -1,5 +1,6 @@
 package fr.isen.twitter
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import fr.isen.twitter.model.TopBar
 import fr.isen.twitter.ui.theme.MyApplicationTheme
 import kotlin.random.Random
 
@@ -44,7 +46,33 @@ class HomeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MyApplicationTheme {
-                SocialFeedScreen()
+                Scaffold(
+                    topBar = {
+                        TopBar(
+                            showBackButton = true,
+                            onNavigateBack = {
+                                val homeIntent = Intent(this, HomeActivity::class.java)
+                                homeIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                this.startActivity(homeIntent)
+                            }
+                        )
+                    }
+                ) { innerPadding ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            SocialFeedScreen()
+                        }
+                    }
+                }
             }
         }
     }
@@ -64,12 +92,6 @@ fun SocialFeedScreen() {
 @Composable
 fun FeedScreen() {
     Column(modifier = Modifier.padding(8.dp)) {
-        LazyRow {
-            items(mockPosts) { story ->
-                StoryCard(story)
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
         LazyColumn {
             items(mockPosts) { post ->
                 PostItem(post)
