@@ -4,16 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,50 +17,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.FirebaseDatabase
 import fr.isen.twitter.model.TopBar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
 
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import fr.isen.twitter.R
 
 class ProfilActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
-            ProfilScreen()
+            ProfilScreen(username)
         }
     }
 }
 
 
 @Composable
-fun ProfilScreen() {
+fun ProfilScreen(username : String) {
     val context = LocalContext.current
     Scaffold(
         topBar = {
             TopBar(
-                showBackButton = true,
                 onNavigateBack = { context.startActivity(Intent(context, HomeActivity::class.java)) }
             )
         }
     ) { paddingValues ->
-        ProfileContent(paddingValues)
+        ProfileContent(paddingValues, username)
     }
 }
 
 @Composable
-fun ProfileContent(paddingValues: PaddingValues) {
-    var username by remember { mutableStateOf("Nom d'utilisateur") }
+fun ProfileContent(paddingValues: PaddingValues, username: String) {
     var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
 
     Column(
@@ -95,7 +84,7 @@ fun ProfileContent(paddingValues: PaddingValues) {
             Button(
                 onClick = { /* Logique du clic ici */ },
             ) {
-                Text("Amis: $friendsCount")
+                Text("$friendsCount amis")
             }
         }
         // Ajoutez ici d'autres composants ou informations de profil si nécessaire

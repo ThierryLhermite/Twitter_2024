@@ -73,7 +73,6 @@ class HomeActivity : ComponentActivity() {
                         }
                     }
                 }
-                SocialFeedScreen(mockPosts)
             }
         }
     }
@@ -85,7 +84,7 @@ fun SocialFeedScreen() {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        FeedScreen()
+        FeedScreen(mockPosts)
     }
 }
 
@@ -93,7 +92,7 @@ fun SocialFeedScreen() {
 fun FeedScreen(posts: List<MockPost>) {
     LazyColumn {
         items(posts) { post ->
-            PostItem(post = post, userName = currentUser)
+            PostItem(post = post)
         }
     }
 }

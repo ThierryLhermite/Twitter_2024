@@ -1,6 +1,7 @@
 package fr.isen.twitter.model
 
 import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,8 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import fr.isen.twitter.ProfilActivity
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +44,8 @@ import com.google.firebase.database.getValue
 fun TopBar(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
     val searchText = remember { mutableStateOf("") }
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
 
     // Utiliser Box pour superposer les éléments
     Box {
@@ -54,7 +61,28 @@ fun TopBar(onNavigateBack: () -> Unit) {
             },
             actions = {
                 Spacer(Modifier.weight(1f, fill = true)) // Cela pousse les actions à l'extrémité opposée
-                IconButton(onClick = { context.startActivity(Intent(context, ProfilActivity::class.java)) }) {
+                IconButton(onClick =
+                {
+                    uid?.let {
+                        val usersRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").getReference("Users/$uid")
+                        usersRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val username = snapshot.child("username").getValue(String::class.java)
+                                Log.w("NavigateToProfileButton", "Username read: $username")
+
+                                // Une fois le nom d'utilisateur récupéré, lancez ProfilActivity avec le nom d'utilisateur en extra
+                                val intent = Intent(context, ProfilActivity::class.java).apply {
+                                    putExtra("username", username)
+                                }
+                                context.startActivity(intent)
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {
+                                Log.w("NavigateToProfileButton", "Failed to read username.", error.toException())
+                            }
+                        })
+                    } ?: Log.w("NavigateToProfileButton", "UID is null")
+                } ) {
                     Icon(
                         Icons.Filled.AccountCircle, contentDescription = "Profil",
                         modifier = Modifier.size(35.dp)
