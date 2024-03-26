@@ -60,15 +60,14 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-
-    implementation(platform("com.google.firebase:firebase-bom:32.6.0"))
+    implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-storage")
     implementation ("com.google.firebase:firebase-database-ktx")
-    implementation ("androidx.lifecycle:lifecycle-livedata-ktx:2.3.1")
-    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1")
-    implementation ("androidx.core:core-ktx:1.5.0")
+    implementation ("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation ("androidx.core:core-ktx:1.10.1")
     implementation ("androidx.compose.runtime:runtime-livedata:")
     implementation ("androidx.compose.ui:ui:1.0.0")
     implementation ("androidx.compose.material:material:1.0.0")
@@ -78,10 +77,8 @@ dependencies {
 
 
     implementation(libs.firebase.auth.ktx)
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.firebase.auth.ktx)
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -90,8 +87,4 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-}
-
-fun implementation(platform: Any) {
-
 }
