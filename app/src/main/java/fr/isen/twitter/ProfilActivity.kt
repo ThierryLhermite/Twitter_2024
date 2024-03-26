@@ -1,9 +1,12 @@
 package fr.isen.twitter
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +29,10 @@ import androidx.compose.ui.draw.clip
 
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
+import com.google.firebase.storage.FirebaseStorage
+import java.util.UUID
 
 class ProfilActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,5 +95,59 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
             }
         }
         // Ajoutez ici d'autres composants ou informations de profil si nécessaire
+    }
+}
+fun uploadImageToFirebaseStorage(imageUri: Uri?) {
+    val storageReference = FirebaseStorage.getInstance().reference
+    val fileName = UUID.randomUUID().toString() // Crée un nom de fichier unique
+    val imageRef = storageReference.child("images/$fileName")
+
+    imageUri?.let { uri ->
+        imageRef.putFile(uri)
+            .addOnSuccessListener {
+                // Traitement en cas de succès de l'envoi
+                println("Image téléchargée avec succès")
+            }
+            .addOnFailureListener {
+                // Traitement en cas d'échec de l'envoi
+                println("Échec du téléchargement de l'image")
+            }
+    }
+}
+@Composable
+fun ImageUploadFromGalleryWithSendButton() {
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
+
+    Column {
+        Button(onClick = {
+            galleryLauncher.launch("image/*")
+        }) {
+            Text("Importer une image")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp)) // Un peu d'espace entre les boutons
+
+        // Bouton pour envoyer l'image
+        Button(onClick = {
+            imageUri?.let { uri ->
+                uploadImageToFirebaseStorage(uri)
+            }
+        }, enabled = imageUri != null) { // Désactiver le bouton si aucune image n'est sélectionnée
+            Text("Envoyer l'image")
+        }
+
+        imageUri?.let { uri ->
+            // Utiliser Coil pour charger et afficher l'image
+            Image(
+                painter = rememberAsyncImagePainter(uri),
+                contentDescription = "Image sélectionnée"
+            )
+        }
     }
 }
