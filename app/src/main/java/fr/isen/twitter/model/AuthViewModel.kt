@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.MutableLiveData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 
 class AuthViewModel : ViewModel() {
     private var auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -13,37 +16,56 @@ class AuthViewModel : ViewModel() {
     // LiveData pour observer les changements d'état de l'utilisateur
     val userLiveData = MutableLiveData<FirebaseUser?>()
 
+
     fun register(email: String, password: String, username: String) {
-        auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val currentUser = auth.currentUser
-                userLiveData.postValue(currentUser)
+        // Vérifie si le nom d'utilisateur est déjà pris
+        val usersRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users")
+        usersRef.orderByChild("username").equalTo(username).addListenerForSingleValueEvent(object :
+            ValueEventListener {
 
-                // Ajoutez des informations supplémentaires dans la base de données
-                currentUser?.let { user ->
-                    val userId = user.uid
-                    val userMap = mapOf(
-                        "username" to username,
-                        "email" to email,
-                        "friends" to emptyMap<String, Boolean>() // Utilisez une Map vide pour la future liste d'amis
-                        // Ajoutez ici d'autres informations comme "age" si nécessaire
-                    )
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    // Nom d'utilisateur déjà pris
+                    Log.e("AuthViewModel", "Le nom d'utilisateur est déjà utilisé.")
+                    // Informez l'UI que le nom d'utilisateur est pris (ex : en utilisant un autre MutableLiveData)
+                } else {
+                    // Nom d'utilisateur unique, procédez à la création du compte
+                    auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val currentUser = auth.currentUser
+                            userLiveData.postValue(currentUser)
 
-                    // Spécifiez le chemin où vous voulez sauvegarder les données dans votre base de données
-                    val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
-                        .getReference("Users/$userId")
+                            // Ajoutez des informations supplémentaires dans la base de données
+                            currentUser?.let { user ->
+                                val userId = user.uid
+                                val userMap = mapOf(
+                                    "username" to username,
+                                    "email" to email,
+                                    "friends" to emptyMap<String, Boolean>() // Utilisez une Map vide pour la future liste d'amis
+                                )
 
-                    databaseReference.setValue(userMap).addOnCompleteListener { dbTask ->
-                        if (!dbTask.isSuccessful) {
-                            // Gérez l'erreur de sauvegarde dans la base de données, si nécessaire
-                            Log.e("AuthViewModel", "Erreur de sauvegarde des données utilisateur", dbTask.exception)
+                                // Spécifiez le chemin où vous voulez sauvegarder les données dans votre base de données
+                                val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+                                    .getReference("Users/$userId")
+
+                                databaseReference.setValue(userMap).addOnCompleteListener { dbTask ->
+                                    if (!dbTask.isSuccessful) {
+                                        Log.e("AuthViewModel", "Erreur de sauvegarde des données utilisateur", dbTask.exception)
+                                    }
+                                }
+                            }
+                        } else {
+                            userLiveData.postValue(null)
                         }
                     }
                 }
-            } else {
-                userLiveData.postValue(null)
             }
-        }
+
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("AuthViewModel", "Erreur de base de données: ${databaseError.message}")
+            }
+        })
     }
 
     fun addFriend(userId: String, friendId: String) {

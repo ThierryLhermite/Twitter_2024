@@ -49,7 +49,6 @@ class HomeActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         TopBar(
-                            showBackButton = true,
                             onNavigateBack = {
                                 val homeIntent = Intent(this, HomeActivity::class.java)
                                 homeIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -57,11 +56,11 @@ class HomeActivity : ComponentActivity() {
                             }
                         )
                     }
-                ) { innerPadding ->
+                ) { padding ->
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(innerPadding),
+                            .padding(padding),
                         color = MaterialTheme.colorScheme.background
                     ) {
                         Column(

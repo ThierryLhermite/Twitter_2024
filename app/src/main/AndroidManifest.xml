@@ -27,5 +27,6 @@
         <activity android:name=".HomeActivity" />
         <activity android:name=".RegisterActivity" />
         <activity android:name=".ProfilActivity" />
+        <activity android:name=".SearchResultsActivity" />
     </application>
 </manifest>

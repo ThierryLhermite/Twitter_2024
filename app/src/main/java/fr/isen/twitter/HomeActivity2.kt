@@ -28,7 +28,7 @@ class HomeActivity2 : ComponentActivity() {
 
 @Composable
 fun UserHomeScreen() {
-    val context = LocalContext.current
+    //val context = LocalContext.current
     var username by remember { mutableStateOf("") }
 
     // Récupérer l'UID de l'utilisateur connecté
@@ -48,7 +48,6 @@ fun UserHomeScreen() {
     Scaffold(
         topBar = {
             TopBar(
-                showBackButton = true,
                 onNavigateBack = {
                     // Implémentez la logique de navigation vers l'arrière si nécessaire
                 }
