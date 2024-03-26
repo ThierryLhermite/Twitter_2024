@@ -1,12 +1,16 @@
 package fr.isen.twitter
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -29,6 +33,7 @@ class ProfilActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             ProfilScreen()
+            ImageUpload()
         }
     }
 }
@@ -76,6 +81,32 @@ fun ProfilScreen() {
             ) {
                 Text(text = "Bienvenue, $username", style = MaterialTheme.typography.headlineMedium)
             }
+        }
+    }
+}
+
+fun ImageUpload() {
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Préparer le launcher pour ouvrir la galerie
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri // Mettre à jour l'URI de l'image sélectionnée
+    }
+
+    Column {
+        Button(onClick = {
+            // Demander à l'utilisateur de sélectionner une image
+            galleryLauncher.launch("image/*")
+        }) {
+            Text("Importer une image")
+        }
+
+        // Afficher l'image sélectionnée
+        imageUri?.let {
+            // Utiliser un composant pour afficher l'image, par exemple AsyncImage de Coil
+            Text("Image sélectionnée : $it")
         }
     }
 }
