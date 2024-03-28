@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.TopBar
 import java.util.UUID
@@ -104,8 +105,11 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
 }
 fun uploadImageToFirebaseStorage(imageUri: Uri?) {
     val storageReference = FirebaseStorage.getInstance().reference
+
     val fileName = UUID.randomUUID().toString() // Crée un nom de fichier unique
-    val imageRef = storageReference.child("images/$fileName")
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val imageRef =storageReference.child("posts/uuid/$fileName")
 
     imageUri?.let { uri ->
         imageRef.putFile(uri)
