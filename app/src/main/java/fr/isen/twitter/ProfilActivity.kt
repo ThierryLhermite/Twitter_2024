@@ -1,5 +1,6 @@
 package fr.isen.twitter
 
+import fr.isen.twitter.model.*
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -9,35 +10,49 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.TopBar
 import java.text.SimpleDateFormat
@@ -57,8 +72,18 @@ class ProfilActivity : ComponentActivity() {
 
 
 @Composable
-fun ProfilScreen(username: String) {
+fun ProfilScreen(username: String, PostViewModel: PostViewModel = viewModel()) {
     val context = LocalContext.current
+    LaunchedEffect(username) {
+        PostViewModel.fetchUidByUsername(username)
+    }
+    val uid  by PostViewModel.userUid.observeAsState("")
+
+    // Log l'UID chaque fois qu'il change
+    LaunchedEffect(uid) {
+        Log.d("ProfilScreen", "UID récupéré: $uid")
+    }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -66,15 +91,25 @@ fun ProfilScreen(username: String) {
             )
         }
     ) { paddingValues ->
-        ProfileContent(paddingValues, username)
+        Column {
+
+            uid?.let {
+                ProfileContent(paddingValues, username, uid = it)
+                PostsScreen(uid = it, viewModel = viewModel())
+            }
+        }
     }
 }
 
 @Composable
-fun ProfileContent(paddingValues: PaddingValues, username: String) {
+fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String) {
     var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
     var isBottomSheetExpanded by remember { mutableStateOf(false) }
     var postDescription by remember { mutableStateOf("") }
+    val user = FirebaseAuth.getInstance().currentUser
+    val currentuid = user?.uid
+    val context = LocalContext.current
+
 
     Column(
         modifier = Modifier
@@ -101,26 +136,42 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f) // Assure que le texte prend l'espace disponible
             )
-            Button(
-                onClick = { /* Logique du clic ici */ },
-            ) {
-                Text("$friendsCount amis")
+            Column {
+                Button(
+                    onClick = { /* Logique du clic ici */ },
+                ) {
+                    Text("$friendsCount amis")
+                }
+                // Bouton de déconnexion
+                if (currentuid==uid){
+
+                    Button(
+                        onClick = {
+                            FirebaseAuth.getInstance().signOut()
+                            // Rediriger vers l'écran de connexion ou la page d'accueil
+                            context.startActivity(Intent(context, LoginActivity::class.java)) // Assurez-vous d'avoir une activité de connexion nommée LoginActivity ou changez selon votre implémentation
+                        },
+                    ) {
+                        Text("Déconnexion")
+                    }
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp)) // Ajoute un peu d'espace entre la photo de profil et le bouton "Poster"
         // Bouton pour poster
-        Button(
-            onClick = { isBottomSheetExpanded = !isBottomSheetExpanded }, // Inverser l'état de l'expansion du menu
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isBottomSheetExpanded) "Fermer" else "Poster")
-        }
-
-        if (isBottomSheetExpanded) {
-            PostBottomSheet(
-                postDescription = postDescription,
-                onDescriptionChange = { postDescription = it }
-            )
+        if (currentuid==uid){
+            Button(
+                onClick = { isBottomSheetExpanded = !isBottomSheetExpanded }, // Inverser l'état de l'expansion du menu
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isBottomSheetExpanded) "Fermer" else "Poster")
+            }
+            if (isBottomSheetExpanded) {
+                PostBottomSheet(
+                    postDescription = postDescription,
+                    onDescriptionChange = { postDescription = it }
+                )
+            }
         }
     }
 }
@@ -233,4 +284,102 @@ fun UploadPost(imageUri: Uri?,description: String) {
                 println("Échec du téléchargement de l'image")
             }
     }
+}
+
+data class Post(
+    var uid: String? = null, // Ajout de l'UID de l'utilisateur
+    val image: String? = null,
+    val date: String? = null, // Assurez-vous que ceci est dans un format triable
+    val description: String? = null
+)
+
+
+@Composable
+fun DisplayPosts(posts: List<Post>) {
+    LazyColumn { // Utilisez LazyColumn pour afficher une liste d'éléments
+        items(posts) { post ->
+            PostItem(post = post)
+        }
+    }
+}
+
+@Composable
+fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
+    // Variable d'état pour contrôler l'affichage de l'entrée de texte
+    var showInput by remember { mutableStateOf(false) }
+    var inputText by remember { mutableStateOf("") }
+
+    // Récupère le username dès que PostItem est appelé avec un UID spécifique
+    LaunchedEffect(post.uid) {
+        post.uid?.let { PostViewModel.fetchUsernameByUid(it) }
+    }
+
+    // Observe le username récupéré
+    val username by PostViewModel.username.observeAsState("Username inconnu")
+
+    Column(
+        modifier = Modifier
+            .padding(8.dp)
+            .background(Color(0xFFF0F0F0)) // Applique un fond gris léger
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = username) // Utilise le username observé ici
+            Text(text = post.date ?: "Date inconnue")
+        }
+        post.image?.let { imageUrl ->
+            Image(
+                painter = rememberAsyncImagePainter(model = imageUrl),
+                contentDescription = "Post Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Text(post.description ?: "")
+        Button(
+            onClick = { showInput = !showInput } // Bascule l'affichage de l'entrée de texte
+        ) {
+            Text("Commenter")
+        }
+        // Affiche l'entrée de texte et le bouton d'envoi si showInput est true
+        if (showInput) {
+            TextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Ajouter un commentaire...") }
+            )
+            Button(
+                onClick = {
+                    // Logique d'envoi du commentaire
+                    Log.d("PostItem", "Commentaire envoyé: $inputText")
+                    // Réinitialiser l'entrée de texte et cacher le champ
+                    inputText = ""
+                    showInput = false
+                }
+            ) {
+                Text("Envoyer")
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun PostsScreen(uid: String, viewModel: PostViewModel = viewModel()) {
+    // Lorsque PostsScreen est composé, on appelle downloadPosts avec l'UID donné
+    LaunchedEffect(uid) {
+        viewModel.downloadPosts(uid)
+    }
+
+    val posts by viewModel.posts.observeAsState(emptyList())
+    Log.d("PostViewModel", "Téléchargement des posts pour l'UID: $uid")
+
+    DisplayPosts(posts)
 }
