@@ -1,5 +1,6 @@
 package fr.isen.twitter
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -36,8 +37,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.database
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.TopBar
 import java.text.SimpleDateFormat
@@ -51,6 +54,7 @@ class ProfilActivity : ComponentActivity() {
         val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
             ProfilScreen(username)
+            ChangeProfilePicture()
         }
     }
 }
@@ -234,3 +238,56 @@ fun UploadPost(imageUri: Uri?,description: String) {
             }
     }
 }
+
+
+@Composable
+
+fun ChangeProfilePicture() {
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val storageReference = FirebaseStorage.getInstance().reference
+    val databaseReference = Firebase.database("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").reference
+
+    var imageUrl by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> val imageRef = storageReference.child("profilePictures/${uid}.jpg")
+                val uploadTask = imageRef.putFile(uri)
+                uploadTask.addOnSuccessListener {
+                    imageRef.downloadUrl.addOnSuccessListener { uri ->
+                        imageUrl = uri.toString()
+                        // Mise à jour de la Realtime Database avec l'URL de l'image
+                        databaseReference.child("Users").child("$uid").child("profilePictureUrl").setValue(imageUrl)
+                    }
+                }
+            }
+        }
+    }
+
+    Column {
+        Button(onClick = {
+            val intent = Intent().apply {
+                type = "image/*"
+                action = Intent.ACTION_GET_CONTENT
+            }
+            launcher.launch(intent)
+        }) {
+            Text("Changer photo de profil")
+        }
+        if (imageUrl.isNotEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(imageUrl),
+                contentDescription = "Photo de profil",
+                modifier = Modifier
+                    .size(100.dp) // Taille de l'icône
+                    .clip(CircleShape) // Forme circulaire pour l'icône
+            )
+        }
+    }
+}
+
+
+
+
