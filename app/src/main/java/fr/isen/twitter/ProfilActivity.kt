@@ -163,7 +163,7 @@ fun PostBottomSheet(
         // Bouton pour publier le post
         Button(onClick = {
             imageUri?.let { uri ->
-                UploadPost(uri, description = "c moi")
+                UploadPost(uri, description = "$postDescription")
             }
         }, enabled = imageUri != null) { // Désactiver le bouton si aucune image n'est sélectionnée
             Text("Publier")
