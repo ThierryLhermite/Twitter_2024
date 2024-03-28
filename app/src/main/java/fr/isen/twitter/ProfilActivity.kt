@@ -1,6 +1,6 @@
 package fr.isen.twitter
 
-import fr.isen.twitter.model.*
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,12 +47,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.database
 import com.google.firebase.storage.FirebaseStorage
+import fr.isen.twitter.model.PostViewModel
 import fr.isen.twitter.model.TopBar
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -66,6 +65,7 @@ class ProfilActivity : ComponentActivity() {
         val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
             ProfilScreen(username)
+            ChangeProfilePicture()
         }
     }
 }
@@ -255,16 +255,16 @@ fun UploadPost(imageUri: Uri?,description: String) {
     imageUri?.let { uri ->
         imageRef.putFile(uri)
             .addOnSuccessListener { taskSnapshot ->
-                // L'image a été téléchargée avec succès, maintenant obtenez son URL
+                // L'image a été téléchargée, on obtien son URL
                 taskSnapshot.storage.downloadUrl.addOnSuccessListener { uri ->
                     val imageUrl = uri.toString()
 
-                    // Obtenez la date actuelle
+                    // Obtiens la date actuelle
                     val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
                         Date()
                     )
 
-                    // Préparez les données à sauvegarder dans Firestore
+                    // Prépare les données à se sauvegarder dans Firestore
                     val postData = mapOf(
                         "image" to imageUrl,
                         "date" to currentDate,
@@ -273,7 +273,7 @@ fun UploadPost(imageUri: Uri?,description: String) {
 
 
 
-                    // Spécifiez le chemin où vous voulez sauvegarder les données dans votre base de données
+                    // Spécifie le chemin où sauvegarder les données dans la base de données
                     val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
                         .getReference("Users/$uid/Posts/$postname")
 
@@ -392,4 +392,55 @@ fun PostsScreen(uid: String, viewModel: PostViewModel = viewModel()) {
     Log.d("PostViewModel", "Téléchargement des posts pour l'UID: $uid")
 
     DisplayPosts(posts)
+}
+@Composable
+
+fun ChangeProfilePicture() {
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val storageReference = FirebaseStorage.getInstance().reference
+    val databaseReference = Firebase.database("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").reference
+
+    var imageUrl by remember { mutableStateOf("") }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> val imageRef = storageReference.child("profilePictures/${uid}.jpg")
+                val uploadTask = imageRef.putFile(uri)
+                uploadTask.addOnSuccessListener {
+                    imageRef.downloadUrl.addOnSuccessListener { uri ->
+                        imageUrl = uri.toString()
+                        // Mise à jour de la Realtime Database avec l'URL de l'image
+                        databaseReference.child("Users").child("$uid").child("profilePictureUrl").setValue(imageUrl)
+                    }
+                }
+            }
+        }
+    }
+
+    Column {
+        Button(onClick = {
+            val intent = Intent().apply {
+                type = "image/*"
+                action = Intent.ACTION_GET_CONTENT
+            }
+            launcher.launch(intent)
+        }) {
+            Text("Changer photo de profil")
+        }
+        if (imageUrl.isNotEmpty()) {
+            Image(
+                painter = rememberAsyncImagePainter(imageUrl),
+                contentDescription = "Photo de profil",
+                modifier = Modifier
+                    .padding(
+                        horizontal = 15.dp,
+                        vertical = 48.dp
+                    )
+                    .size(100.dp) // Taille de l'icône
+                    .clip(CircleShape) // Forme circulaire pour l'icône
+            )
+        }
+    }
 }
