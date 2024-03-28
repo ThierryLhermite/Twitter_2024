@@ -138,7 +138,9 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
             )
             Column {
                 Button(
-                    onClick = { /* Logique du clic ici */ },
+                    onClick = {
+                        context.startActivity(Intent(context, AmiActivity::class.java)) // Assurez-vous d'avoir une activité de connexion nommée LoginActivity ou changez selon votre implémentation
+                    },
                 ) {
                     Text("$friendsCount amis")
                 }
@@ -153,6 +155,14 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
                         },
                     ) {
                         Text("Déconnexion")
+                    }
+                }
+                else{
+                    Button(
+                        onClick = {
+                        },
+                    ) {
+                        Text("Demande d'ami")
                     }
                 }
             }
