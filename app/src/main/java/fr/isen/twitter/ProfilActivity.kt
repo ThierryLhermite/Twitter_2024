@@ -75,8 +75,6 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
     var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
     var isBottomSheetExpanded by remember { mutableStateOf(false) }
     var postDescription by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-
 
     Column(
         modifier = Modifier
