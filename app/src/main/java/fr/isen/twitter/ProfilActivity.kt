@@ -3,6 +3,7 @@ package fr.isen.twitter
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -35,13 +36,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.HomeActivity
 import fr.isen.twitter.R
 import fr.isen.twitter.model.TopBar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class ProfilActivity : ComponentActivity() {
@@ -177,15 +183,105 @@ fun PostBottomSheet(
         }
     }
 }
+@Composable
+fun ProfilScreen(username : String) {
+    val context = LocalContext.current
+    Scaffold(
+        topBar = {
+            TopBar(
+                onNavigateBack = { context.startActivity(Intent(context, HomeActivity::class.java)) }
+            )
+        }
+    ) { paddingValues ->
+        ProfileContent(paddingValues, username)
+    }
+}
 
-fun uploadImageToFirebaseStorage(imageUri: Uri?) {
+@Composable
+fun ProfileContent(paddingValues: PaddingValues, username: String) {
+    var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
+
+    Column(
+        modifier = Modifier
+            .padding(paddingValues)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+        // Utilisez Row pour aligner horizontalement la photo de profil, le nom d'utilisateur et le bouton "Amis"
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                contentDescription = "Photo de profil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = username,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f) // Assure que le texte prend l'espace disponible
+            )
+            Button(modifier = Modifier.width( 25.dp),
+                onClick = { /* Logique du clic ici */ },
+            ) {
+                Text("$friendsCount amis")
+            }
+        }
+        // Ajoutez ici d'autres composants ou informations de profil si nécessaire
+    }
+}
+fun UploadPost(imageUri: Uri?,description: String) {
     val storageReference = FirebaseStorage.getInstance().reference
+    val postname =UUID.randomUUID().toString()
     val fileName = UUID.randomUUID().toString() // Crée un nom de fichier unique
-    val imageRef = storageReference.child("images/$fileName")
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+
+
+
+
+
+    val imageRef =storageReference.child("/$fileName")
 
     imageUri?.let { uri ->
         imageRef.putFile(uri)
-            .addOnSuccessListener {
+            .addOnSuccessListener { taskSnapshot ->
+                // L'image a été téléchargée avec succès, maintenant obtenez son URL
+                taskSnapshot.storage.downloadUrl.addOnSuccessListener { uri ->
+                    val imageUrl = uri.toString()
+
+                    // Obtenez la date actuelle
+                    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+                        Date()
+                    )
+
+                    // Préparez les données à sauvegarder dans Firestore
+                    val postData = mapOf(
+                        "image" to imageUrl,
+                        "date" to currentDate,
+                        "description" to description
+                    )
+
+
+
+                    // Spécifiez le chemin où vous voulez sauvegarder les données dans votre base de données
+                    val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+                        .getReference("Users/$uid/Posts/$postname")
+
+                    databaseReference.setValue(postData).addOnCompleteListener { dbTask ->
+                        if (!dbTask.isSuccessful) {
+                            Log.e("AuthViewModel", "Erreur de sauvegarde des données utilisateur", dbTask.exception)
+                        }
+
+                    }
+
+                }
+
                 // Traitement en cas de succès de l'envoi
                 println("Image téléchargée avec succès")
             }
@@ -195,7 +291,6 @@ fun uploadImageToFirebaseStorage(imageUri: Uri?) {
             }
     }
 }
-
 @Composable
 fun ImageUploadFromGalleryWithSendButton() {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
@@ -206,26 +301,21 @@ fun ImageUploadFromGalleryWithSendButton() {
         imageUri = uri
     }
 
-    Column {
-        Button(
-            onClick = {
-                galleryLauncher.launch("image/*")
-            }
-        ) {
-            Text("Sélectionner une image")
+    Column(modifier = Modifier.padding(horizontal= 150.dp,vertical= 250.dp)) {
+        Button(onClick = {
+            galleryLauncher.launch("image/*")
+        }) {
+            Text("Importer une image")
         }
 
-        Spacer(modifier = Modifier.height(16.dp)) // Un peu d'espace entre les boutons
+        Spacer(modifier = Modifier.height(32.dp)) // Un peu d'espace entre les boutons
 
         // Bouton pour envoyer l'image
-        Button(
-            onClick = {
-                imageUri?.let { uri ->
-                    uploadImageToFirebaseStorage(uri)
-                }
-            },
-            enabled = imageUri != null
-        ) { // Désactiver le bouton si aucune image n'est sélectionnée
+        Button(onClick = {
+            imageUri?.let { uri ->
+                UploadPost(uri, description = "c moi")
+            }
+        }, enabled = imageUri != null) { // Désactiver le bouton si aucune image n'est sélectionnée
             Text("Envoyer l'image")
         }
 
@@ -236,54 +326,5 @@ fun ImageUploadFromGalleryWithSendButton() {
                 contentDescription = "Image sélectionnée"
             )
         }
-    }
-}
-
-fun uploadPostToFirebase(description: String, imageUri: Uri?) {
-    // Récupérer l'UID de l'utilisateur
-    val userId = Firebase.auth.currentUser?.uid
-
-    // Vérifier si l'utilisateur est authentifié
-    if (userId != null) {
-        // Logique pour enregistrer le post dans Firebase avec l'UID de l'utilisateur
-        val storageReference = FirebaseStorage.getInstance().reference
-        val postId = UUID.randomUUID().toString() // Générer un ID unique pour le post
-        val postRef = storageReference.child("posts/$postId")
-
-        // Envoyer l'image à Firebase Storage
-        imageUri?.let { uri ->
-            postRef.putFile(uri)
-                .addOnSuccessListener { // Enregistrement réussi dans Firebase Storage
-                    // Récupérer l'URL de l'image téléchargée
-                    postRef.downloadUrl.addOnSuccessListener { uri ->
-                        val imageUrl = uri.toString()
-
-                        // Enregistrer les détails du post dans la base de données Firestore
-                        val db = Firebase.firestore
-                        val post = hashMapOf(
-                            "userId" to userId,
-                            "description" to description,
-                            "imageUrl" to imageUrl
-                        )
-                        db.collection("posts")
-                            .document(postId)
-                            .set(post)
-                            .addOnSuccessListener {
-                                // Succès de l'enregistrement du post dans Firestore
-                                println("Post enregistré avec succès dans Firestore")
-                            }
-                            .addOnFailureListener { e ->
-                                // Échec de l'enregistrement du post dans Firestore
-                                println("Erreur lors de l'enregistrement du post dans Firestore: $e")
-                            }
-                    }
-                }
-                .addOnFailureListener { e ->
-                    // Échec de l'envoi de l'image à Firebase Storage
-                    println("Erreur lors de l'envoi de l'image à Firebase Storage: $e")
-                }
-        }
-    } else {
-        println("L'utilisateur n'est pas authentifié.")
     }
 }
