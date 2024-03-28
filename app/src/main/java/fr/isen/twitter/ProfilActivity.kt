@@ -37,13 +37,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
-import fr.isen.twitter.HomeActivity
-import fr.isen.twitter.R
 import fr.isen.twitter.model.TopBar
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,7 +51,6 @@ class ProfilActivity : ComponentActivity() {
         val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
             ProfilScreen(username)
-            ImageUploadFromGalleryWithSendButton()
         }
     }
 }
@@ -82,6 +76,7 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
     var isBottomSheetExpanded by remember { mutableStateOf(false) }
     var postDescription by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+
 
     Column(
         modifier = Modifier
@@ -125,15 +120,8 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
 
         if (isBottomSheetExpanded) {
             PostBottomSheet(
-                onDismiss = { isBottomSheetExpanded = false },
-                onPublish = {
-                    uploadPostToFirebase(postDescription, imageUri)
-                    isBottomSheetExpanded = false
-                },
                 postDescription = postDescription,
-                onDescriptionChange = { postDescription = it },
-                imageUri = imageUri,
-                onImageSelected = { imageUri = it }
+                onDescriptionChange = { postDescription = it }
             )
         }
     }
@@ -142,13 +130,15 @@ fun ProfileContent(paddingValues: PaddingValues, username: String) {
 
 @Composable
 fun PostBottomSheet(
-    onDismiss: () -> Unit,
-    onPublish: () -> Unit,
     postDescription: String,
     onDescriptionChange: (String) -> Unit,
-    imageUri: Uri?,
-    onImageSelected: (Uri) -> Unit
 ) {
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
     Column {
         // Input pour la description du post
         TextField(
@@ -163,9 +153,7 @@ fun PostBottomSheet(
         // Bouton pour sélectionner une image
         Button(
             onClick = {
-                // Logique pour sélectionner une image ici
-                // Vous pouvez lancer une activité pour sélectionner une image à partir de la galerie
-                onImageSelected(Uri.EMPTY) // Passer une URI vide pour l'instant
+                galleryLauncher.launch("image/*")
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -175,66 +163,23 @@ fun PostBottomSheet(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Bouton pour publier le post
-        Button(
-            onClick = onPublish,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Button(onClick = {
+            imageUri?.let { uri ->
+                UploadPost(uri, description = "c moi")
+            }
+        }, enabled = imageUri != null) { // Désactiver le bouton si aucune image n'est sélectionnée
             Text("Publier")
         }
-    }
-}
-@Composable
-fun ProfilScreen(username : String) {
-    val context = LocalContext.current
-    Scaffold(
-        topBar = {
-            TopBar(
-                onNavigateBack = { context.startActivity(Intent(context, HomeActivity::class.java)) }
-            )
-        }
-    ) { paddingValues ->
-        ProfileContent(paddingValues, username)
-    }
-}
-
-@Composable
-fun ProfileContent(paddingValues: PaddingValues, username: String) {
-    var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
-
-    Column(
-        modifier = Modifier
-            .padding(paddingValues)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        // Utilisez Row pour aligner horizontalement la photo de profil, le nom d'utilisateur et le bouton "Amis"
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        imageUri?.let { uri ->
+            // Utiliser Coil pour charger et afficher l'image
             Image(
-                painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                contentDescription = "Photo de profil",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
+                painter = rememberAsyncImagePainter(uri),
+                contentDescription = "Image sélectionnée"
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = username,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f) // Assure que le texte prend l'espace disponible
-            )
-            Button(modifier = Modifier.width( 25.dp),
-                onClick = { /* Logique du clic ici */ },
-            ) {
-                Text("$friendsCount amis")
-            }
         }
-        // Ajoutez ici d'autres composants ou informations de profil si nécessaire
     }
 }
+
 fun UploadPost(imageUri: Uri?,description: String) {
     val storageReference = FirebaseStorage.getInstance().reference
     val postname =UUID.randomUUID().toString()
@@ -289,42 +234,5 @@ fun UploadPost(imageUri: Uri?,description: String) {
                 // Traitement en cas d'échec de l'envoi
                 println("Échec du téléchargement de l'image")
             }
-    }
-}
-@Composable
-fun ImageUploadFromGalleryWithSendButton() {
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        imageUri = uri
-    }
-
-    Column(modifier = Modifier.padding(horizontal= 150.dp,vertical= 250.dp)) {
-        Button(onClick = {
-            galleryLauncher.launch("image/*")
-        }) {
-            Text("Importer une image")
-        }
-
-        Spacer(modifier = Modifier.height(32.dp)) // Un peu d'espace entre les boutons
-
-        // Bouton pour envoyer l'image
-        Button(onClick = {
-            imageUri?.let { uri ->
-                UploadPost(uri, description = "c moi")
-            }
-        }, enabled = imageUri != null) { // Désactiver le bouton si aucune image n'est sélectionnée
-            Text("Envoyer l'image")
-        }
-
-        imageUri?.let { uri ->
-            // Utiliser Coil pour charger et afficher l'image
-            Image(
-                painter = rememberAsyncImagePainter(uri),
-                contentDescription = "Image sélectionnée"
-            )
-        }
     }
 }
