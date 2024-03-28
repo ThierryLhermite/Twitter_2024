@@ -29,5 +29,6 @@
         <activity android:name=".RegisterActivity" />
         <activity android:name=".ProfilActivity" />
         <activity android:name=".SearchResultsActivity" />
+        <activity android:name=".AmiActivity" />
     </application>
 </manifest>
