@@ -26,7 +26,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,7 +55,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.PostViewModel
@@ -319,6 +327,48 @@ fun UploadComment(uid: String,commentaire: String, postname : String) {
     }
 }
 
+fun upload(uid: String, postName: String) {
+    val auth = FirebaseAuth.getInstance()
+    val currentUid = auth.currentUser?.uid
+
+    if (currentUid == null) {
+        Log.e("toggleLike", "Utilisateur non connecté.")
+        return
+    }
+
+    val likesRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+        .getReference("Users/$uid/Posts/$postName/Likes")
+
+    // Vérifie si l'UID est déjà présent dans la liste des likes
+    likesRef.child(currentUid).addListenerForSingleValueEvent(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            // Si l'UID est déjà là, le retirer (dislike)
+            if (snapshot.exists()) {
+                likesRef.child(currentUid).removeValue().addOnCompleteListener { task ->
+                    if (!task.isSuccessful) {
+                        Log.e("toggleLike", "Erreur lors de la suppression du like", task.exception)
+                    } else {
+                        Log.d("toggleLike", "Like retiré avec succès.")
+                    }
+                }
+            } else {
+                // Si l'UID n'est pas là, l'ajouter (like)
+                likesRef.child(currentUid).setValue(true).addOnCompleteListener { task ->
+                    if (!task.isSuccessful) {
+                        Log.e("toggleLike", "Erreur lors de l'ajout du like", task.exception)
+                    } else {
+                        Log.d("toggleLike", "Like ajouté avec succès.")
+                    }
+                }
+            }
+        }
+
+        override fun onCancelled(databaseError: DatabaseError) {
+            Log.e("toggleLike", "Erreur lors de la vérification du like", databaseError.toException())
+        }
+    })
+}
+
 data class Commentaire(
     var uidcomment : String? = null,
     var texte: String? = null,
@@ -332,8 +382,8 @@ data class Post(
     val image: String? = null,
     val date: String? = null, // Assurez-vous que ceci est dans un format triable
     val description: String? = null,
-    var commentaires: List<Commentaire>? = mutableListOf() // Liste des commentaires
-    //rajouter like et commentaire
+    var commentaires: List<Commentaire>? = mutableListOf(), // Liste des commentaires
+    var likes: MutableList<String> = mutableListOf() // Ajout de la liste des UID des utilisateurs qui ont aimé le post
 )
 
 
@@ -352,10 +402,26 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
     var showInput by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
     var showComments by remember { mutableStateOf(false) }
+    val postsLikes by PostViewModel.postsLikes.observeAsState(initial = mapOf())
+    val postsLikesCount by PostViewModel.postsLikesCount.observeAsState(initial = mapOf())
+    val userLikes by PostViewModel.userLikes.observeAsState(initial = emptyMap())
 
-    // Récupère le username dès que PostItem est appelé avec un UID spécifique
+    // Determine if the current post is liked
+    val isLiked = userLikes[post.uidpost] ?: false
+    // Get the current like count for the post
+    val likeCount = postsLikesCount[post.uidpost] ?: 0
+
+    // Effet lancé pour charger le nombre de likes une fois et s'abonner aux mises à jour
+    LaunchedEffect(post.uidpost) {
+        post.uid?.let { uid ->
+            post.uidpost?.let { uidPost ->
+                PostViewModel.fetchLikesCount(uid, uidPost)
+            }
+        }
+    }
     LaunchedEffect(post.uid) {
-        post.uid?.let { PostViewModel.fetchUsernameByUid(it) }
+        post.uid?.let { PostViewModel.fetchUsernameByUid(it)
+        }
     }
 
     // Observe le username récupéré
@@ -388,7 +454,28 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
                 contentScale = ContentScale.Crop
             )
         }
-        Text(post.description ?: "")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(post.description ?: "")
+            IconButton(onClick = {
+                post.uid?.let { uid ->
+                    post.uidpost?.let { postUid ->
+                        PostViewModel.toggleLike(uid, postUid)
+                        PostViewModel.fetchLikesCount(uid, postUid)
+                    }
+                }
+            }) {
+                Icon(
+                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = if (isLiked) Color.Red else Color.Gray
+                )
+            }
+            Text(text = "$likeCount")
+        }
         Button(onClick = { showComments = !showComments }) {
             Text("Commentaires")
         }
