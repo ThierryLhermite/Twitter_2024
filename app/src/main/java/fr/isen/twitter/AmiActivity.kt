@@ -140,7 +140,6 @@ fun FriendItem(friendUid: String, viewModel: AmiViewModel,uid: String) {
         Log.d("FriendScreen", "LaunchedEffect avec UID: $uid")
         viewModel.loadFriends(uid)
     }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -16,22 +16,6 @@ class AmiViewModel : ViewModel() {
     private val _friendsCount = MutableLiveData<Int>()
     val friendsCount: LiveData<Int> = _friendsCount
 
-    fun loadFriendRequests(uid: String) {
-        val friendRequestsRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
-            .getReference("Users/$uid/friendRequests")
-
-        friendRequestsRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val requests = snapshot.children.mapNotNull { it.key }
-                _friendRequests.value = requests
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("AmiViewModel", "Erreur lors du chargement des demandes d'ami", error.toException())
-            }
-        })
-    }
-
     fun removeFriend(friendUid: String, onComplete: () -> Unit) {
         val auth = FirebaseAuth.getInstance()
         val currentUid = auth.currentUser?.uid ?: return
@@ -83,6 +67,22 @@ class AmiViewModel : ViewModel() {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.e("AmiViewModel", "Erreur lors du chargement des amis", error.toException())
+            }
+        })
+    }
+
+    fun loadFriendRequests(uid: String) {
+        val friendRequestsRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users/$uid/friendRequests")
+
+        friendRequestsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val requests = snapshot.children.mapNotNull { it.key }
+                _friendRequests.value = requests
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("AmiViewModel", "Erreur lors du chargement des demandes d'ami", error.toException())
             }
         })
     }
