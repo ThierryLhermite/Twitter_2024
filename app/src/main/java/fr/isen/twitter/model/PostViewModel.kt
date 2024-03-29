@@ -14,8 +14,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 class PostViewModel : ViewModel() {
-    private val _posts = MutableLiveData<List<Post>>()
-    val posts: LiveData<List<Post>> = _posts
+
 
     private val _username = MutableLiveData<String>()
     val username: LiveData<String> = _username
@@ -58,6 +57,8 @@ class PostViewModel : ViewModel() {
             }
         })
     }
+    private val _posts = MutableLiveData<List<Post>>()
+    val posts: LiveData<List<Post>> = _posts
 
     fun downloadPosts(uid: String) {
         val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
@@ -67,13 +68,16 @@ class PostViewModel : ViewModel() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val postsList = mutableListOf<Post>()
                 snapshot.children.forEach { postSnapshot ->
+                    val uidpost = postSnapshot.key
                     val post = postSnapshot.getValue(Post::class.java)?.apply {
                         this.uid = uid // Assurez-vous d'ajouter l'UID ici
+                        this.uidpost = uidpost // Ajoutez l'UID du post ici
                     }
                     post?.let { postsList.add(it) }
                 }
                 // Triez ici si nécessaire
-                _posts.value = postsList
+                val sortedPosts = postsList.sortedByDescending { it.date?.let { date -> SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(date)?.time } ?: 0L }
+                _posts.value = sortedPosts
             }
 
             override fun onCancelled(databaseError: DatabaseError) {

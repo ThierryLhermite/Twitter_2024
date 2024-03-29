@@ -245,11 +245,6 @@ fun UploadPost(imageUri: Uri?,description: String) {
     val fileName = UUID.randomUUID().toString() // Crée un nom de fichier unique
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid
-
-
-
-
-
     val imageRef =storageReference.child("/$fileName")
 
     imageUri?.let { uri ->
@@ -281,7 +276,6 @@ fun UploadPost(imageUri: Uri?,description: String) {
                         if (!dbTask.isSuccessful) {
                             Log.e("AuthViewModel", "Erreur de sauvegarde des données utilisateur", dbTask.exception)
                         }
-
                     }
 
                 }
@@ -296,11 +290,48 @@ fun UploadPost(imageUri: Uri?,description: String) {
     }
 }
 
+fun UploadComment(uid: String,commentaire: String, postname : String) {
+    val auth = FirebaseAuth.getInstance()
+    val currentuid = auth.currentUser?.uid
+    val Commentname = UUID.randomUUID().toString() // Crée un nom de fichier unique
+
+
+    // Obtiens la date actuelle
+    val currentDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(
+        Date()
+    )
+
+    // Prépare les données à se sauvegarder dans Firestore
+    val postComment = mapOf(
+        "Texte" to commentaire,
+        "date" to currentDate,
+        "auteur" to currentuid
+    )
+
+    // Spécifie le chemin où sauvegarder les données dans la base de données
+    val databaseReference = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+        .getReference("Users/$uid/Posts/$postname/Comment/$Commentname")
+    databaseReference.setValue(postComment).addOnCompleteListener { dbTask ->
+        if (!dbTask.isSuccessful) {
+            Log.e("AuthViewModel", "Erreur de sauvegarde des données utilisateur", dbTask.exception)
+        }
+    }
+}
+
+data class Commentaire(
+    val texte: String? = null,
+    val uid: String? = null,
+    val date: String? = null
+)
+
 data class Post(
+    var uidpost : String? = null,
     var uid: String? = null, // Ajout de l'UID de l'utilisateur
     val image: String? = null,
     val date: String? = null, // Assurez-vous que ceci est dans un format triable
-    val description: String? = null
+    val description: String? = null,
+    val commentaires: List<Commentaire>? = mutableListOf() // Liste des commentaires
+    //rajouter like et commentaire
 )
 
 
@@ -326,6 +357,10 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
 
     // Observe le username récupéré
     val username by PostViewModel.username.observeAsState("Username inconnu")
+
+
+    val uid= post.uid
+    val postname = post.uidpost
 
     Column(
         modifier = Modifier
@@ -366,6 +401,11 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
             )
             Button(
                 onClick = {
+                    if (uid != null) {
+                        if (postname != null) {
+                            UploadComment(uid,"String", postname)
+                        }
+                    }
                     // Logique d'envoi du commentaire
                     Log.d("PostItem", "Commentaire envoyé: $inputText")
                     // Réinitialiser l'entrée de texte et cacher le champ
@@ -393,6 +433,8 @@ fun PostsScreen(uid: String, viewModel: PostViewModel = viewModel()) {
 
     DisplayPosts(posts)
 }
+
+
 @Composable
 
 fun ChangeProfilePicture() {
