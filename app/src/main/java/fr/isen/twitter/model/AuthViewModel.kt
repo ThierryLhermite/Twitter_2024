@@ -42,7 +42,6 @@ class AuthViewModel : ViewModel() {
                                 val userMap = mapOf(
                                     "username" to username,
                                     "email" to email,
-                                    "friends" to emptyMap<String, Boolean>() // Utilisez une Map vide pour la future liste d'amis
                                 )
 
                                 // Spécifiez le chemin où vous voulez sauvegarder les données dans votre base de données
