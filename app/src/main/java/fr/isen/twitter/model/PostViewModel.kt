@@ -17,10 +17,8 @@ import java.util.Locale
 
 class PostViewModel : ViewModel() {
 
-
     private val _username = MutableLiveData<String>()
     val username: LiveData<String> = _username
-
     fun fetchUsernameByUid(uid: String) {
         val userRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").getReference("Users/$uid/username")
 
@@ -121,6 +119,65 @@ class PostViewModel : ViewModel() {
 
             override fun onCancelled(databaseError: DatabaseError) {
                 Log.e("PostViewModel", "Échec du chargement des posts.", databaseError.toException())
+            }
+        })
+    }
+
+    // LiveData pour observer les changements de l'état de like sur un post spécifique
+    // Utilisez un dictionnaire pour stocker l'état de like pour chaque post
+    private val _postsLikes = MutableLiveData<Map<String, Boolean>>()
+    val postsLikes: LiveData<Map<String, Boolean>> = _postsLikes
+
+    // Utilisez un dictionnaire pour stocker le compteur de likes pour chaque post
+    private val _postsLikesCount = MutableLiveData<Map<String, Int>>()
+    val postsLikesCount: LiveData<Map<String, Int>> = _postsLikesCount
+
+    private val _userLikes = MutableLiveData<Map<String, Boolean>>().apply { value = emptyMap() }
+    val userLikes: LiveData<Map<String, Boolean>> = _userLikes
+
+
+    private val auth = FirebaseAuth.getInstance()
+    fun toggleLike(uid: String, postName: String) {
+        val currentUid = auth.currentUser?.uid ?: return
+
+        // Path to the specific post's likes
+        val postLikesRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users/$uid/Posts/$postName/Likes")
+
+        postLikesRef.child(currentUid).addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val isLiked = snapshot.exists()
+                if (isLiked) {
+                    postLikesRef.child(currentUid).removeValue()
+                } else {
+                    postLikesRef.child(currentUid).setValue(true)
+                }
+                // Met à jour l'état local après le changement dans Firebase
+                val updatedLikes = _userLikes.value.orEmpty().toMutableMap().apply {
+                    this[postName] = !isLiked
+                }
+                _userLikes.postValue(updatedLikes)
+            }
+
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("PostViewModel", "Error toggling like", databaseError.toException())
+            }
+        })
+    }
+
+    fun fetchLikesCount(uid: String, postName: String) {
+        val likesRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users/$uid/Posts/$postName/Likes")
+
+        likesRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // Update the likes count for the specific post
+                val currentCounts = _postsLikesCount.value ?: mapOf()
+                _postsLikesCount.postValue(currentCounts + (postName to snapshot.childrenCount.toInt()))
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("PostViewModel", "Error fetching likes count", error.toException())
             }
         })
     }
