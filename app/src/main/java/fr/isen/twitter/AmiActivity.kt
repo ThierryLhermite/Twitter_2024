@@ -118,14 +118,14 @@ fun FriendScreen(uid: String) {
     Scaffold {
         LazyColumn {
             items(friends) { friendUid ->
-                FriendItem(friendUid, viewModel= viewModel,uid)
+                FriendItem(friendUid)
             }
         }
     }
 }
 
 @Composable
-fun FriendItem(friendUid: String, viewModel: AmiViewModel,uid: String) {
+fun FriendItem(friendUid: String, viewModel: AmiViewModel = viewModel()) {
     var username by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -136,10 +136,7 @@ fun FriendItem(friendUid: String, viewModel: AmiViewModel,uid: String) {
             username = fetchedUsername
         }
     }
-    LaunchedEffect(uid) {
-        Log.d("FriendScreen", "LaunchedEffect avec UID: $uid")
-        viewModel.loadFriends(uid)
-    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()

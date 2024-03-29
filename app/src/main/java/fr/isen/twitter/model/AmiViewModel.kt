@@ -56,12 +56,17 @@ class AmiViewModel : ViewModel() {
     val friends: LiveData<List<String>> = _friends
 
     fun loadFriends(uid: String) {
+        Log.d("AmiViewModel", "Chargement des amis pour l'UID: $uid")
         val friendsRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
             .getReference("Users/$uid/friends")
 
         friendsRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val friends = snapshot.children.mapNotNull { it.key }
+                val friends = snapshot.children.mapNotNull { childSnapshot ->
+                    val friendUid = childSnapshot.key
+                    Log.d("AmiViewModel", "Ami trouvé: $friendUid")
+                    friendUid
+                }
                 _friends.value = friends
             }
 
