@@ -61,6 +61,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
 import com.google.firebase.storage.FirebaseStorage
+import fr.isen.twitter.model.AmiViewModel
 import fr.isen.twitter.model.PostViewModel
 import fr.isen.twitter.model.TopBar
 import java.text.SimpleDateFormat
@@ -111,14 +112,19 @@ fun ProfilScreen(username: String, PostViewModel: PostViewModel = viewModel()) {
 }
 
 @Composable
-fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String) {
-    var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
+fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String,viewModel: AmiViewModel = viewModel()) {
     var isBottomSheetExpanded by remember { mutableStateOf(false) }
     var postDescription by remember { mutableStateOf("") }
     val user = FirebaseAuth.getInstance().currentUser
     val currentuid = user?.uid
     val context = LocalContext.current
+    // Charge le nombre d'amis lorsque le composant est lancé
+    LaunchedEffect(uid) {
+        viewModel.loadFriendsCount(uid)
+    }
 
+    // Observe le LiveData pour obtenir le nombre d'amis
+    val friendsCount by viewModel.friendsCount.observeAsState(0)
 
     Column(
         modifier = Modifier
@@ -146,17 +152,7 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
                 modifier = Modifier.weight(1f) // Assure que le texte prend l'espace disponible
             )
             Column {
-                Button(
-                    onClick = {
-                            val intent = Intent(context, AmiActivity::class.java).apply {
-                                putExtra("uid", uid)
-                            }
-                        context.startActivity(intent)
-
-                    },
-                ) {
-                    Text("$friendsCount amis")
-                }
+                ButtonWithFriendsCount(uid, friendsCount)
                 // Bouton de déconnexion
                 if (currentuid==uid){
 
@@ -199,6 +195,25 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
         }
     }
 }
+
+@Composable
+fun ButtonWithFriendsCount(uid: String, friendsCount: Int) {
+    val context = LocalContext.current
+
+    Button(
+        onClick = {
+            // Lorsque le bouton est cliqué, naviguez vers AmiActivity avec l'UID en extra
+            val intent = Intent(context, AmiActivity::class.java).apply {
+                putExtra("uid", uid)
+            }
+            context.startActivity(intent)
+        },
+    ) {
+        // Le texte du bouton inclut le nombre d'amis
+        Text("$friendsCount amis")
+    }
+}
+
 
 fun addFriend(targetUid: String) {
     val auth = FirebaseAuth.getInstance()

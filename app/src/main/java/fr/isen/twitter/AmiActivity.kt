@@ -3,6 +3,8 @@ package fr.isen.twitter
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -107,6 +109,7 @@ fun FriendRequestsScreen(uid: String) {
 fun FriendScreen(uid: String) {
     val viewModel: AmiViewModel = viewModel()
     LaunchedEffect(uid) {
+        Log.d("FriendScreen", "LaunchedEffect avec UID: $uid")
         viewModel.loadFriends(uid)
     }
 
@@ -115,26 +118,52 @@ fun FriendScreen(uid: String) {
     Scaffold {
         LazyColumn {
             items(friends) { friendUid ->
-                FriendItem(friendUid)
+                FriendItem(friendUid, viewModel= viewModel,uid)
             }
         }
     }
 }
 
 @Composable
-fun FriendItem(friendUid: String, viewModel: AmiViewModel = viewModel()) {
+fun FriendItem(friendUid: String, viewModel: AmiViewModel,uid: String) {
     var username by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(friendUid) {
+        Log.d("FriendItem", "Récupération du nom pour l'UID: $friendUid")
         viewModel.fetchUsername(friendUid) { fetchedUsername ->
+            Log.d("FriendItem", "Nom récupéré: $fetchedUsername")
             username = fetchedUsername
         }
     }
+    LaunchedEffect(uid) {
+        Log.d("FriendScreen", "LaunchedEffect avec UID: $uid")
+        viewModel.loadFriends(uid)
+    }
 
-    Column(modifier = Modifier.padding(8.dp)) {
-        Text(text = "Ami : $username")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = username)
+
+        Button(
+            onClick = {
+                // Implémentez la logique pour supprimer cet ami ici
+                viewModel.removeFriend(friendUid) {
+                    Toast.makeText(context, "Ami supprimé : $username", Toast.LENGTH_SHORT).show()
+                }
+            },
+            // Appliquer un style ou des modifications de modifier au besoin
+        ) {
+            Text("Supprimer")
+        }
     }
 }
+
 
 
 
