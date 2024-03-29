@@ -165,6 +165,35 @@ class PostViewModel : ViewModel() {
         })
     }
 
+    fun likeMaj(uid: String, postName: String) {
+        val currentUid = auth.currentUser?.uid ?: return
+
+        // Chemin vers les likes du post spécifique
+        val postLikesRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+            .getReference("Users/$uid/Posts/$postName/Likes/$currentUid")
+
+        postLikesRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // Détermine si l'UID de l'utilisateur actuel est présent dans les likes
+                val isLiked = snapshot.exists()
+
+                // Met à jour l'état local pour refléter la présence ou l'absence du like
+                updateIsLikedState(postName, isLiked)
+            }
+
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("PostViewModel", "Erreur lors de la récupération de l'état du like", databaseError.toException())
+            }
+        })
+    }
+
+    private fun updateIsLikedState(postName: String, isLiked: Boolean) {
+        val updatedLikes = _userLikes.value.orEmpty().toMutableMap().apply {
+            this[postName] = isLiked
+        }
+        _userLikes.postValue(updatedLikes)
+    }
+
     fun fetchLikesCount(uid: String, postName: String) {
         val likesRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
             .getReference("Users/$uid/Posts/$postName/Likes")

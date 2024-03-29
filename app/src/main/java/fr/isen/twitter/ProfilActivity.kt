@@ -416,6 +416,7 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
         post.uid?.let { uid ->
             post.uidpost?.let { uidPost ->
                 PostViewModel.fetchLikesCount(uid, uidPost)
+                PostViewModel.likeMaj(uid, uidPost)
             }
         }
     }
