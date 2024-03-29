@@ -148,7 +148,11 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
             Column {
                 Button(
                     onClick = {
-                        context.startActivity(Intent(context, AmiActivity::class.java)) // Assurez-vous d'avoir une activité de connexion nommée LoginActivity ou changez selon votre implémentation
+                            val intent = Intent(context, AmiActivity::class.java).apply {
+                                putExtra("uid", uid)
+                            }
+                        context.startActivity(intent)
+
                     },
                 ) {
                     Text("$friendsCount amis")
@@ -169,6 +173,7 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
                 else{
                     Button(
                         onClick = {
+                            addFriend(uid)
                         },
                     ) {
                         Text("Demande d'ami")
@@ -194,6 +199,38 @@ fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String)
         }
     }
 }
+
+fun addFriend(targetUid: String) {
+    val auth = FirebaseAuth.getInstance()
+    val currentUid = auth.currentUser?.uid ?: return
+
+    // Référence à la liste des demandes d'ami de l'UID cible
+    val friendRequestsRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app")
+        .getReference("Users/$targetUid/friendRequests/$currentUid") // Utilise currentUid comme clé directement
+
+    // Vérifie d'abord si une demande d'ami existe déjà de cet utilisateur
+    friendRequestsRef.addListenerForSingleValueEvent(object : ValueEventListener {
+        override fun onDataChange(snapshot: DataSnapshot) {
+            if (!snapshot.exists()) {
+                // Si aucune demande d'ami n'existe de cet utilisateur, ajoutez-la
+                friendRequestsRef.setValue(true).addOnCompleteListener { task -> // Attribue true comme valeur
+                    if (task.isSuccessful) {
+                        Log.d("AddFriend", "Demande d'ami envoyée avec succès.")
+                    } else {
+                        Log.e("AddFriend", "Erreur lors de l'envoi de la demande d'ami", task.exception)
+                    }
+                }
+            } else {
+                Log.d("AddFriend", "Une demande d'ami existe déjà pour cet utilisateur.")
+            }
+        }
+
+        override fun onCancelled(databaseError: DatabaseError) {
+            Log.e("AddFriend", "Erreur lors de la vérification de l'existence de la demande d'ami", databaseError.toException())
+        }
+    })
+}
+
 
 
 @Composable
@@ -415,8 +452,8 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
     LaunchedEffect(post.uidpost) {
         post.uid?.let { uid ->
             post.uidpost?.let { uidPost ->
-                PostViewModel.fetchLikesCount(uid, uidPost)
                 PostViewModel.likeMaj(uid, uidPost)
+                PostViewModel.fetchLikesCount(uid, uidPost)
             }
         }
     }
