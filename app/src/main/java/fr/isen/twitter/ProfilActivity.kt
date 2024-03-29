@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -319,9 +320,10 @@ fun UploadComment(uid: String,commentaire: String, postname : String) {
 }
 
 data class Commentaire(
-    val texte: String? = null,
-    val uid: String? = null,
-    val date: String? = null
+    var uidcomment : String? = null,
+    var texte: String? = null,
+    var uid: String? = null,
+    var date: String? = null
 )
 
 data class Post(
@@ -330,7 +332,7 @@ data class Post(
     val image: String? = null,
     val date: String? = null, // Assurez-vous que ceci est dans un format triable
     val description: String? = null,
-    val commentaires: List<Commentaire>? = mutableListOf() // Liste des commentaires
+    var commentaires: List<Commentaire>? = mutableListOf() // Liste des commentaires
     //rajouter like et commentaire
 )
 
@@ -349,6 +351,7 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
     // Variable d'état pour contrôler l'affichage de l'entrée de texte
     var showInput by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
+    var showComments by remember { mutableStateOf(false) }
 
     // Récupère le username dès que PostItem est appelé avec un UID spécifique
     LaunchedEffect(post.uid) {
@@ -386,39 +389,64 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
             )
         }
         Text(post.description ?: "")
-        Button(
-            onClick = { showInput = !showInput } // Bascule l'affichage de l'entrée de texte
-        ) {
-            Text("Commenter")
+        Button(onClick = { showComments = !showComments }) {
+            Text("Commentaires")
         }
-        // Affiche l'entrée de texte et le bouton d'envoi si showInput est true
-        if (showInput) {
-            TextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Ajouter un commentaire...") }
-            )
-            Button(
-                onClick = {
-                    if (uid != null) {
-                        if (postname != null) {
-                            UploadComment(uid,"String", postname)
-                        }
+        if (showComments) {
+            post.commentaires?.let { commentaires ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp) // Limite la hauteur de LazyColumn
+                ) {
+                    items(commentaires) { commentaire ->
+                        CommentItem(commentaire)
                     }
-                    // Logique d'envoi du commentaire
-                    Log.d("PostItem", "Commentaire envoyé: $inputText")
-                    // Réinitialiser l'entrée de texte et cacher le champ
-                    inputText = ""
-                    showInput = false
                 }
-            ) {
-                Text("Envoyer")
+                TextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Ajouter un commentaire...") }
+                )
+                Button(
+                    onClick = {
+                        if (uid != null) {
+                            if (postname != null) {
+                                UploadComment(uid,inputText , postname ?: "")
+                            }
+                        }
+                        // Logique d'envoi du commentaire
+                        Log.d("PostItem", "Commentaire envoyé: $inputText")
+                        // Réinitialiser l'entrée de texte et cacher le champ
+                        inputText = ""
+                        showInput = false
+                    }
+                ) {
+                    Text("Envoyer")
+                }
             }
         }
     }
 }
 
+@Composable
+fun CommentItem(commentaire: Commentaire,PostViewModel: PostViewModel = viewModel()) {
+    // Récupère le username dès que PostItem est appelé avec un UID spécifique
+    LaunchedEffect(commentaire.uid) {
+        commentaire.uid?.let { PostViewModel.fetchUsernameByUid(it) }
+    }
+
+    // Observe le username récupéré
+    val username by PostViewModel.username.observeAsState("Username inconnu")
+
+
+    Column(modifier = Modifier.padding(4.dp)) {
+        Log.d("CommentItem", "UID: ${commentaire.uid}, Date: ${commentaire.date}, Texte: ${commentaire.texte}")
+        Text(text = "Par $username le ${commentaire.date}")
+        Text(text = commentaire.texte ?: "")
+    }
+}
 
 
 @Composable

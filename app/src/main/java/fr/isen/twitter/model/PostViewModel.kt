@@ -9,7 +9,9 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import fr.isen.twitter.Commentaire
 import fr.isen.twitter.Post
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -68,15 +70,52 @@ class PostViewModel : ViewModel() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val postsList = mutableListOf<Post>()
                 snapshot.children.forEach { postSnapshot ->
+                    // Identifiant unique du post
                     val uidpost = postSnapshot.key
+                    // Récupère et construit la liste des commentaires pour ce post spécifique
+                    // Récupère et construit la liste des commentaires pour ce post spécifique
+                    val commentaires = mutableListOf<Commentaire>()
+                    postSnapshot.child("Comment").children.forEach { commentaireSnapshot ->
+                        val uidCommentaire = commentaireSnapshot.key ?: ""
+                        val auteurCommentaire = commentaireSnapshot.child("auteur").getValue(String::class.java) ?: ""
+                        val texteCommentaire = commentaireSnapshot.child("Texte").getValue(String::class.java) ?: ""
+                        val dateCommentaire = commentaireSnapshot.child("date").getValue(String::class.java) ?: ""
+
+                        val commentaire = Commentaire().apply {
+                            this.uidcomment = uidCommentaire // Définit l'UID du commentaire
+                            this.uid = auteurCommentaire
+                            this.texte = texteCommentaire // Définit le texte du commentaire
+                            this.date = dateCommentaire // Définit la date du commentaire
+                        }
+
+                        commentaires.add(commentaire)
+                    }
+
+                    // Trie les commentaires par date dans l'ordre décroissant avant de les ajouter au post
+                    val sortedCommentaires = commentaires.sortedByDescending {
+                        try {
+                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(it.date)?.time ?: 0L
+                        } catch (e: ParseException) {
+                            // Log the error or handle it as needed
+                            Log.e("PostViewModel", "Failed to parse date: '${it.date}'.", e)
+                            0L // Provide a default value in case of parsing failure
+                        }
+                    }
+
                     val post = postSnapshot.getValue(Post::class.java)?.apply {
-                        this.uid = uid // Assurez-vous d'ajouter l'UID ici
-                        this.uidpost = uidpost // Ajoutez l'UID du post ici
+                        this.uid = uid // Définit l'UID de l'utilisateur qui a créé le post
+                        this.uidpost = uidpost // Définit l'UID unique du post
+                        this.commentaires = sortedCommentaires // Ajoute la liste triée des commentaires à ce post
                     }
                     post?.let { postsList.add(it) }
                 }
-                // Triez ici si nécessaire
-                val sortedPosts = postsList.sortedByDescending { it.date?.let { date -> SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(date)?.time } ?: 0L }
+                // Trie les posts par date dans l'ordre décroissant
+                val sortedPosts = postsList.sortedByDescending {
+                    it.date?.let { date ->
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(date)?.time
+                    } ?: 0L
+                }
+                // Met à jour l'état ou la variable observée qui contient la liste des posts
                 _posts.value = sortedPosts
             }
 
@@ -85,4 +124,5 @@ class PostViewModel : ViewModel() {
             }
         })
     }
+
 }
