@@ -93,7 +93,6 @@ fun RegisterScreen(authViewModel: AuthViewModel = viewModel()) {
             // Utilisateur connecté, naviguez vers une autre activité
             context.startActivity(Intent(context, HomeActivity::class.java))
             // Vous pourriez vouloir finir LoginActivity ici, mais soyez prudent car vous êtes dans un contexte Composable.
-            // Il pourrait être préférable de gérer la navigation en dehors du Composable, ou d'utiliser un système de navigation adapté à Compose.
         }
     }
 }
