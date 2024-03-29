@@ -1,6 +1,7 @@
 package fr.isen.twitter
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,6 +55,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -60,6 +63,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.database
+import com.google.firebase.database.getValue
 import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.AmiViewModel
 import fr.isen.twitter.model.PostViewModel
@@ -74,9 +78,35 @@ class ProfilActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val username = intent.getStringExtra("username") ?: "Nom d'utilisateur par défaut"
         setContent {
+
             ProfilScreen(username)
             ChangeProfilePicture()
+            profilePictureUrlScreen()
+            DisplayUserImage(uid = "WdwTJoPey3hIoNQT11xtVyEIMil1")
+
         }
+    }
+}
+@Composable
+fun DisplayUserImage(uid: String) {
+    val imageUrl = remember { mutableStateOf("") }
+
+    // Initialisez l'écouteur une seule fois grâce à LaunchedEffect
+    LaunchedEffect(key1 = uid) {
+        val databaseRef = Firebase.database.getReference("Users/$uid/profilePictureUrl")
+        databaseRef.get().addOnSuccessListener { dataSnapshot ->
+            imageUrl.value = dataSnapshot.getValue<String>() ?: ""
+        }
+    }
+
+    // Affichez l'image si l'URL n'est pas vide
+    if (imageUrl.value.isNotEmpty()) {
+        Image(
+            painter = rememberAsyncImagePainter(imageUrl.value),
+            contentDescription = "User Image",
+            modifier = Modifier.fillMaxWidth(),
+            contentScale = ContentScale.FillWidth
+        )
     }
 }
 
@@ -85,6 +115,7 @@ class ProfilActivity : ComponentActivity() {
 fun ProfilScreen(username: String, PostViewModel: PostViewModel = viewModel()) {
     val context = LocalContext.current
     LaunchedEffect(username) {
+        PostViewModel.fetchUidByUsername(username)
         PostViewModel.fetchUidByUsername(username)
     }
     val uid  by PostViewModel.userUid.observeAsState("")
@@ -481,6 +512,7 @@ fun PostItem(post: Post, PostViewModel: PostViewModel = viewModel()) {
     val username by PostViewModel.username.observeAsState("Username inconnu")
 
 
+
     val uid= post.uid
     val postname = post.uidpost
 
@@ -603,9 +635,12 @@ fun PostsScreen(uid: String, viewModel: PostViewModel = viewModel()) {
 }
 
 
+
 @Composable
 
-fun ChangeProfilePicture() {
+fun ChangeProfilePicture(){
+
+
     val auth = FirebaseAuth.getInstance()
     val uid = auth.currentUser?.uid
     val storageReference = FirebaseStorage.getInstance().reference
@@ -629,16 +664,8 @@ fun ChangeProfilePicture() {
         }
     }
 
-    Column {
-        Button(onClick = {
-            val intent = Intent().apply {
-                type = "image/*"
-                action = Intent.ACTION_GET_CONTENT
-            }
-            launcher.launch(intent)
-        }) {
-            Text("Changer photo de profil")
-        }
+    Column (modifier = Modifier.padding (top = 70 .dp,start = 200 .dp)){
+
         if (imageUrl.isNotEmpty()) {
             Image(
                 painter = rememberAsyncImagePainter(imageUrl),
@@ -650,7 +677,190 @@ fun ChangeProfilePicture() {
                     )
                     .size(100.dp) // Taille de l'icône
                     .clip(CircleShape) // Forme circulaire pour l'icône
+
+
             )
         }
     }
 }
+@Composable
+fun profilePictureUrlScreen( viewModel: PostViewModel = viewModel()) {
+    // Lorsque profilePictureUrlScreen est composé, on appelle profilePictureUrl avec l'UID donné
+    var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
+    var isBottomSheetExpanded by remember { mutableStateOf(false) }
+    var postDescription by remember { mutableStateOf("") }
+    val user = FirebaseAuth.getInstance().currentUser
+    val currentuid = user?.uid
+    val context = LocalContext.current
+    val profil_image  = painterResource(R.drawable.ic_profile_placeholder)
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val storageReference = FirebaseStorage.getInstance().reference
+    val databaseReference = Firebase.database("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").reference
+
+    var imageUrl by remember { mutableStateOf("") }
+
+
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> val imageRef = storageReference.child("profilePictures/${uid}.jpg")
+                val uploadTask = imageRef.putFile(uri)
+                uploadTask.addOnSuccessListener {
+                    imageRef.downloadUrl.addOnSuccessListener { uri ->
+                        imageUrl = uri.toString()
+                        // Mise à jour de la Realtime Database avec l'URL de l'image
+                        databaseReference.child("Users").child("$uid").child("profilePictureUrl").setValue(imageUrl)
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(uid) {
+        viewModel.fetchPhotosByUid("$uid")
+    }
+
+
+}
+@Composable
+fun ProfileContent(paddingValues: PaddingValues, username: String, uid : String, viewModel: PostViewModel = viewModel()) {
+
+    var friendsCount by remember { mutableStateOf(10) } // Exemple du nombre d'amis
+    var isBottomSheetExpanded by remember { mutableStateOf(false) }
+    var postDescription by remember { mutableStateOf("") }
+    val user = FirebaseAuth.getInstance().currentUser
+    val currentuid = user?.uid
+    val context = LocalContext.current
+    val profil_image  = painterResource(R.drawable.ic_profile_placeholder)
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
+    val storageReference = FirebaseStorage.getInstance().reference
+    val databaseReference = Firebase.database("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").reference
+
+    var imageUrl by remember { mutableStateOf("") }
+
+
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri -> val imageRef = storageReference.child("profilePictures/${uid}.jpg")
+                val uploadTask = imageRef.putFile(uri)
+                uploadTask.addOnSuccessListener {
+                    imageRef.downloadUrl.addOnSuccessListener { uri ->
+                        imageUrl = uri.toString()
+                        // Mise à jour de la Realtime Database avec l'URL de l'image
+                        databaseReference.child("Users").child("$uid").child("profilePictureUrl").setValue(imageUrl)
+                    }
+                }
+            }
+        }
+    }
+
+
+    Column(
+        modifier = Modifier
+            .padding(paddingValues)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+        // Utilisez Row pour aligner horizontalement la photo de profil, le nom d'utilisateur et le bouton "Amis"
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Image(
+                painter = profil_image,
+                contentDescription = "Photo de profil",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .clickable {
+
+
+                        val intent = Intent().apply {
+                            type = "image/*"
+                            action = Intent.ACTION_GET_CONTENT
+
+                        }
+
+                        launcher.launch(intent)
+
+
+                    }
+
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = username,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f) // Assure que le texte prend l'espace disponible
+            )
+            Column {
+                Button(
+                    onClick = {
+                        context.startActivity(Intent(context, AmiActivity::class.java)) // Assurez-vous d'avoir une activité de connexion nommée LoginActivity ou changez selon votre implémentation
+                    },
+                ) {
+                    Text("$friendsCount amis")
+                }
+                // Bouton de déconnexion
+                if (currentuid==uid){
+
+                    Button(
+                        onClick = {
+                            FirebaseAuth.getInstance().signOut()
+                            // Rediriger vers l'écran de connexion ou la page d'accueil
+                            context.startActivity(Intent(context, LoginActivity::class.java)) // Assurez-vous d'avoir une activité de connexion nommée LoginActivity ou changez selon votre implémentation
+                        },
+                    ) {
+                        Text("Déconnexion")
+                    }
+                }
+                else{
+                    Button(
+                        onClick = {
+                        },
+                    ) {
+                        Text("Demande d'ami")
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp)) // Ajoute un peu d'espace entre la photo de profil et le bouton "Poster"
+        // Bouton pour poster
+        if (currentuid==uid){
+            Button(
+                onClick = { isBottomSheetExpanded = !isBottomSheetExpanded }, // Inverser l'état de l'expansion du menu
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isBottomSheetExpanded) "Fermer" else "Poster")
+            }
+            if (isBottomSheetExpanded) {
+                PostBottomSheet(
+                    postDescription = postDescription,
+                    onDescriptionChange = { postDescription = it }
+                )
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+/*
+.clickable {
+
+    val intent = Intent().apply {
+        type = "image/*"
+        action = Intent.ACTION_GET_CONTENT
+    }
+    launcher.launch(intent)
+}
+/*/

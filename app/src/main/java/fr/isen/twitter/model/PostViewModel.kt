@@ -10,15 +10,22 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import fr.isen.twitter.Commentaire
+import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.Post
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.UUID
 
 class PostViewModel : ViewModel() {
 
+
+
     private val _username = MutableLiveData<String>()
+    private val _profilePictureUrl = MutableLiveData<String>()
     val username: LiveData<String> = _username
+    val profilePictureUrl: LiveData<String> = _profilePictureUrl
+
     fun fetchUsernameByUid(uid: String) {
         val userRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").getReference("Users/$uid/username")
 
@@ -30,6 +37,22 @@ class PostViewModel : ViewModel() {
 
             override fun onCancelled(error: DatabaseError) {
                 Log.w("UserViewModel", "fetchUsernameByUid:onCancelled", error.toException())
+                // Gérer l'erreur si nécessaire
+            }
+        })
+    }
+    fun fetchPhotosByUid(uid: String) {
+        val userRef = FirebaseDatabase.getInstance("https://twitter-42a5c-default-rtdb.europe-west1.firebasedatabase.app").getReference("Users/$uid/profilePictureUrl")
+
+        userRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // Récupère le lien URL de la photo de profil username et le stocke dans le LiveData
+                _profilePictureUrl.value = snapshot.value as? String
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.d("URL", "Valeur URL Image: $String")
+
                 // Gérer l'erreur si nécessaire
             }
         })
