@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -35,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -65,6 +67,7 @@ import com.google.firebase.storage.FirebaseStorage
 import fr.isen.twitter.model.AmiViewModel
 import fr.isen.twitter.model.PostViewModel
 import fr.isen.twitter.model.TopBar
+import fr.isen.twitter.ui.theme.MyApplicationTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -74,10 +77,42 @@ class AmiActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val uid = intent.getStringExtra("uid") ?: return // Récupère l'UID passé à l'activité
+        val auth = FirebaseAuth.getInstance()
+        val currentUid = auth.currentUser?.uid ?: return
 
         setContent {
-            // Ici, vous pouvez utiliser l'UID pour charger les demandes d'ami
-            FriendRequestsScreen(uid)
+            MyApplicationTheme {
+                Scaffold(
+                    topBar = {
+                        TopBar(
+                            onNavigateBack = {
+                                val homeIntent = Intent(this, HomeActivity::class.java)
+                                homeIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                this.startActivity(homeIntent)
+                            }
+                        )
+                    }
+                ) { padding ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (currentUid == uid) {
+                                // Ici, vous pouvez utiliser l'UID pour charger les demandes d'ami
+                                FriendRequestsScreen(uid)
+                            }
+                            FriendScreen(uid)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -105,11 +140,48 @@ fun FriendRequestsScreen(uid: String) {
     }
 }
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@Composable
+fun FriendScreen(uid: String) {
+    val viewModel: AmiViewModel = viewModel()
+    LaunchedEffect(uid) {
+        viewModel.loadFriends(uid)
+    }
+
+    val friends by viewModel.friends.observeAsState(emptyList())
+
+    Scaffold {
+        LazyColumn {
+            items(friends) { friendUid ->
+                FriendItem(friendUid)
+            }
+        }
+    }
+}
+
+@Composable
+fun FriendItem(friendUid: String, viewModel: AmiViewModel = viewModel()) {
+    var username by remember { mutableStateOf("") }
+
+    LaunchedEffect(friendUid) {
+        viewModel.fetchUsername(friendUid) { fetchedUsername ->
+            username = fetchedUsername
+        }
+    }
+
+    Column(modifier = Modifier.padding(8.dp)) {
+        Text(text = "Ami : $username")
+    }
+}
+
 
 
 @Composable
 fun FriendRequestItem(requestUid: String, viewModel: AmiViewModel = viewModel() ) {
     var username by remember { mutableStateOf("") } // Initialisez l'état pour stocker le username
+
+    val auth = FirebaseAuth.getInstance()
+    val currentUid = auth.currentUser?.uid ?: return
 
     LaunchedEffect(requestUid) {
         viewModel.fetchUsername(requestUid) { fetchedUsername ->
@@ -129,7 +201,7 @@ fun FriendRequestItem(requestUid: String, viewModel: AmiViewModel = viewModel() 
         Row {
             Button(
                 onClick = {
-
+                    viewModel.acceptFriend(currentUid, requestUid)
                 },
                 modifier = Modifier.padding(end = 8.dp)
             ) {
@@ -138,7 +210,7 @@ fun FriendRequestItem(requestUid: String, viewModel: AmiViewModel = viewModel() 
 
             Button(
                 onClick = {
-
+                    viewModel.refuseFriend(currentUid, requestUid)
                 },
             ) {
                 Text("Refuser")
@@ -146,5 +218,4 @@ fun FriendRequestItem(requestUid: String, viewModel: AmiViewModel = viewModel() 
         }
     }
 }
-
 
